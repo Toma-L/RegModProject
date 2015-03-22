@@ -1,0 +1,89 @@
+---
+output: pdf_document
+---
+#Regression Models Course Project
+
+Composed by: Akihiro Hayashi (21/03/2015)
+
+#Executive Summary
+
+To answer the following questions:
+
+1. “Is an automatic or manual transmission better for MPG”
+2. "Quantify the MPG difference between automatic and manual transmissions"
+
+We use "mtcars" datasets to do EDA, correlation analysis, multivariate regression and residual analysis for answering the questions.
+
+Results: From our model, mpg of a manual car is "7.25" higher than an automatic car. But it's NOT significant because it's confounded by weight and horsepower.
+
+##1. Exploratory Data Analysis
+
+First, we take a look at this dataset.
+
+```{r, results = 'hide'}
+data(mtcars)
+?mtcars
+head(mtcars)
+```
+
+According to the questions, we have interest in the relation between mpg and the variable called "am". Then, we make a plot to take a quick look.
+
+```{r}
+plot(mtcars$am, mtcars$mpg, col = 3 + (mtcars$am == 0), pch = 19, main = "EDA", xlab = "AM", ylab = "MPG")
+abline(lm(mtcars$mpg ~ mtcars$am), lwd = 3, col = "red")
+abline(h = mean(mtcars$mpg[mtcars$am == 0]), lwd = 2, col = "blue")
+abline(h = mean(mtcars$mpg[mtcars$am == 1]), lwd = 2, col = "green")
+```
+
+It seems when we use cars with manual transmissions (green) have higher mpg than automatic transmissions (blue). So we do an unadjusted estimate.
+
+```{r}
+summary(lm(mpg ~ am, data = mtcars))
+```
+
+We rejected the hypothesis that "type of transmissions doesn't affect mpg" at a 95% significant level (p-value is lower than 0.001). According to the coefficient of "am", we can say that the mpg of a manual car is significantly 7.25 higher than an automatic car.
+
+BUT, we still have to examine whether there is any confounder which may mislead our judgement. So we calculate the correlations between mpg and other variables and pick some variables with relatively higher correlation value.
+
+##2. Correlation Analysis
+
+```{r}
+sort.cor <- sort(abs(cor(mtcars)[1, ]), decreasing = TRUE)
+sort.cor
+```
+
+According to correlation analysis, we can include (wt, cyl, disp, hp, am) in our model. And then, we check correlation again to see whether thers is any collinearity between them.
+
+```{r}
+cor(mtcars)[c(6, 2, 3, 4, 9), c(6, 2, 3, 4, 9)]
+```
+
+We find out wt has high collinearity with disp and cyl, so we remove them and only include (wt, hp) as confounders in our model. Now we use anova to examinate our decision.
+
+##3. Multivariate Regression
+
+```{r}
+fit1 <- lm(mpg ~ am, data = mtcars)
+fit2 <- lm(mpg ~ am + wt, data = mtcars)
+fit3 <- lm(mpg ~ am + wt + hp, data = mtcars)
+anova(fit1, fit2, fit3)
+```
+
+Obviously, our model can SIGNIFICANTLY explain the variation of mpg. Then we summarize our model.
+
+```{r}
+summary(fit3)
+```
+
+At the beginning, we rejected "type of transmissions doesn't affect mpg" at a 95% significant level. But in our final model, we failed to reject it. To explain the coefficient of "am", it means that mpg of manual cars is 7.25 higher than a automatic car. But it's NOT obvious and it is confounded by "wt" and "hp". Weight and gross horsepower do have ACTUAL effect on mpg (mostly weight), as confounding factors. Per unit increase in weight may decrease 2.88 mpg. Per unit increase in horsepower may decrease 0.04 mpg.
+
+The R-squared value of our final model is 84%. And the adjucted R-squared value is 82.3%. Our model can explain 82.3% variation of mpg, seems like a good model. At last, we do residual analysis.
+
+##4. Residual Analysis
+
+```{r}
+par(mfrow = c(2, 2))
+plot(fit3)
+```
+
+From the Normal Q-Q plot, the distribution of the residuals nearly looks like normal. And from the right-down plot, no obvious pattern in our residuals. We can use this model to predict mpg.
